@@ -1,7 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js"
 import { User } from "../models/user.model.js"
-import { uploadOnCloudinary } from "../utils/cloudinary.js"
+import { deleteFile, uploadOnCloudinary } from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/apiResponse.js";
 import jwt from 'jsonwebtoken'
 // import cookieParser from "cookie-parser";
@@ -256,6 +256,11 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 
     if (!avatarLocalPath) throw new ApiError(400, "No Avatar image provided")
 
+
+    //delete  old avatar from the server folder
+    const deleteResponse = await deleteFile(req.user?.avatar)
+    if(!deleteResponse) throw new ApiError(400, "Could not remove the previous avatar")
+
     const avatar = await uploadOnCloudinary(avatarLocalPath);
 
     console.log(avatar.url)
@@ -303,5 +308,8 @@ const updateUsercoverImage = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, "Your cover Image has been updated successfully", user))
 
 })
+
+
+
 
 export { registerUser, loginUser, logOutUser, refreshAccessToken, changeCurrentPassword, getCurrentUser, updateAccountDetails, updateUserAvatar, updateUsercoverImage }
