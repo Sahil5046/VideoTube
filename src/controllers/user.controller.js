@@ -4,6 +4,7 @@ import { User } from "../models/user.model.js"
 import { deleteFile, uploadOnCloudinary } from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/apiResponse.js";
 import jwt from 'jsonwebtoken'
+import mongoose from "mongoose";
 // import cookieParser from "cookie-parser";
 
 
@@ -259,7 +260,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 
     //delete  old avatar from the server folder
     const deleteResponse = await deleteFile(req.user?.avatar)
-    if(!deleteResponse) throw new ApiError(400, "Could not remove the previous avatar")
+    if (!deleteResponse) throw new ApiError(400, "Could not remove the previous avatar")
 
     const avatar = await uploadOnCloudinary(avatarLocalPath);
 
@@ -310,6 +311,58 @@ const updateUsercoverImage = asyncHandler(async (req, res) => {
 })
 
 
+const getWatchHistory = asyncHandler(async (req, res) => {
+    const user = User.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Schema.Types.ObjectId(req.use?._id)
+            }
+        },
+        {
+            $lookup: {
+                from: 'videos',
+                localField: 'watchHistory',
+                foreignField: '_id',
+                as: 'watchHistory',
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: 'users',
+                            localField: 'owner',
+                            foreignField: '_id',
+                            as: 'owner',
+                            pipeline: [
+                                {
+                                    $project: {
+                                        fullname: 1,
+                                        username: 1,
+                                        avatar: 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $addFields: {
+                            owner: {
+                                $first: "$owner"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ])
+
+    return res.status(200)
+        .json(
+            new ApiResponse(
+                200,
+                user[0].watchHistory,
+                "Watched history fetched successfully"
+            )
+        )
+})
 
 
-export { registerUser, loginUser, logOutUser, refreshAccessToken, changeCurrentPassword, getCurrentUser, updateAccountDetails, updateUserAvatar, updateUsercoverImage }
+export { registerUser, loginUser, logOutUser, refreshAccessToken, changeCurrentPassword, getCurrentUser, updateAccountDetails, updateUserAvatar, updateUsercoverImage, getWatchHistory }
